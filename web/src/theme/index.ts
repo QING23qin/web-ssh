@@ -1,7 +1,15 @@
-export { ThemeProvider, useTheme } from "./context";
+export { ThemeProvider, usePersonalization, useTheme } from "./context";
 export type { ResolvedTheme, ThemeMode } from "./theme";
 export {
   getTerminalTheme,
   THEME_OPTIONS,
   THEME_STORAGE_KEY,
 } from "./theme";
+export {
+  BACKGROUND_MAX_BYTES,
+  BACKGROUND_STORAGE_KEY,
+  readImageFileAsDataUrl,
+  WIDGET_OPACITY_MAX,
+  WIDGET_OPACITY_MIN,
+  WIDGET_OPACITY_STORAGE_KEY,
+} from "./personalization";

@@ -8,6 +8,14 @@ import {
   type ReactNode,
 } from "react";
 import {
+  applyBackgroundImage,
+  applyWidgetOpacity,
+  BACKGROUND_STORAGE_KEY,
+  getStoredBackgroundImage,
+  getStoredWidgetOpacity,
+  WIDGET_OPACITY_STORAGE_KEY,
+} from "./personalization";
+import {
   applyTheme,
   getStoredThemeMode,
   THEME_STORAGE_KEY,
@@ -15,24 +23,60 @@ import {
   type ThemeMode,
 } from "./theme";
 
-interface ThemeContextValue {
+interface PersonalizationContextValue {
   mode: ThemeMode;
   resolvedTheme: ResolvedTheme;
   setMode: (mode: ThemeMode) => void;
+  backgroundImage: string | null;
+  setBackgroundImage: (image: string | null) => void;
+  widgetOpacity: number;
+  setWidgetOpacity: (opacity: number) => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+const PersonalizationContext = createContext<PersonalizationContextValue | null>(
+  null,
+);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => getStoredThemeMode());
   const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() =>
     applyTheme(getStoredThemeMode()),
   );
+  const [backgroundImage, setBackgroundImageState] = useState<string | null>(
+    () => getStoredBackgroundImage(),
+  );
+  const [widgetOpacity, setWidgetOpacityState] = useState<number>(() =>
+    getStoredWidgetOpacity(),
+  );
+
+  useEffect(() => {
+    applyBackgroundImage(backgroundImage);
+  }, [backgroundImage]);
+
+  useEffect(() => {
+    applyWidgetOpacity(widgetOpacity);
+  }, [widgetOpacity]);
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
     localStorage.setItem(THEME_STORAGE_KEY, next);
     setResolvedTheme(applyTheme(next));
+  }, []);
+
+  const setBackgroundImage = useCallback((image: string | null) => {
+    setBackgroundImageState(image);
+    if (image) {
+      localStorage.setItem(BACKGROUND_STORAGE_KEY, image);
+    } else {
+      localStorage.removeItem(BACKGROUND_STORAGE_KEY);
+    }
+    applyBackgroundImage(image);
+  }, []);
+
+  const setWidgetOpacity = useCallback((opacity: number) => {
+    const clamped = applyWidgetOpacity(opacity);
+    setWidgetOpacityState(clamped);
+    localStorage.setItem(WIDGET_OPACITY_STORAGE_KEY, String(clamped));
   }, []);
 
   useEffect(() => {
@@ -48,19 +92,46 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [mode]);
 
   const value = useMemo(
-    () => ({ mode, resolvedTheme, setMode }),
-    [mode, resolvedTheme, setMode],
+    () => ({
+      mode,
+      resolvedTheme,
+      setMode,
+      backgroundImage,
+      setBackgroundImage,
+      widgetOpacity,
+      setWidgetOpacity,
+    }),
+    [
+      mode,
+      resolvedTheme,
+      setMode,
+      backgroundImage,
+      setBackgroundImage,
+      widgetOpacity,
+      setWidgetOpacity,
+    ],
   );
 
   return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+    <PersonalizationContext.Provider value={value}>
+      {children}
+    </PersonalizationContext.Provider>
   );
 }
 
-export function useTheme() {
-  const context = useContext(ThemeContext);
+function usePersonalizationContext() {
+  const context = useContext(PersonalizationContext);
   if (!context) {
     throw new Error("useTheme must be used within ThemeProvider");
   }
   return context;
+}
+
+export function useTheme() {
+  const { mode, resolvedTheme, setMode } = usePersonalizationContext();
+  return { mode, resolvedTheme, setMode };
+}
+
+export function usePersonalization() {
+  return usePersonalizationContext();
 }

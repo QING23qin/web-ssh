@@ -20,6 +20,17 @@
             : mode;
         document.documentElement.dataset.theme = resolved;
         document.documentElement.style.colorScheme = resolved;
+
+        var opacity = localStorage.getItem("ternssh-widget-opacity");
+        if (opacity) {
+          var parsed = parseInt(opacity, 10);
+          if (!isNaN(parsed) && parsed >= 30 && parsed <= 100) {
+            document.documentElement.style.setProperty(
+              "--widget-opacity",
+              String(parsed / 100),
+            );
+          }
+        }
       })();
     </script>
   </head>

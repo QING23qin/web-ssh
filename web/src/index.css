@@ -5,7 +5,10 @@
   --color-primary-foreground: oklch(0.985 0 0);
   --color-ring: oklch(0.72 0.14 165);
   --app-min-width: 1280px;
+  --grid-margin-x: 12px;
+  --grid-margin-y: 12px;
   --workspace-header-height: 48px;
+  --workspace-header-margin-bottom: var(--grid-margin-y);
 }
 
 html[data-theme="dark"] {
@@ -60,6 +63,7 @@ html[data-theme="light"] {
 
 html {
   min-width: var(--app-min-width);
+  --widget-opacity: 1;
 }
 
 body {
@@ -92,6 +96,24 @@ body {
   overflow-y: hidden;
 }
 
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--workspace-background-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--workspace-background-opacity, 0);
+}
+
+.app-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
 .workspace-header {
   position: sticky;
   top: 0;
@@ -102,6 +124,7 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
+  margin-bottom: var(--workspace-header-margin-bottom);
   background: color-mix(in oklch, var(--color-background) 88%, transparent);
   backdrop-filter: blur(10px);
   pointer-events: auto;
@@ -124,13 +147,17 @@ body {
 
 .workspace {
   min-width: var(--app-min-width);
-  height: calc(100vh - var(--workspace-header-height));
+  height: calc(
+    100vh - var(--workspace-header-height) - var(--workspace-header-margin-bottom)
+  );
   overflow: auto;
 }
 
 .workspace-toast {
   position: fixed;
-  top: calc(var(--workspace-header-height) + 8px);
+  top: calc(
+    var(--workspace-header-height) + var(--workspace-header-margin-bottom) + 8px
+  );
   left: 50%;
   z-index: 50;
   translate: -50% 0;
@@ -149,9 +176,11 @@ body {
   --grid-step-y: 52px;
   --grid-col-width: 68px;
   --grid-row-height: 40px;
-  --grid-margin-x: 12px;
-  --grid-margin-y: 12px;
   background-color: var(--color-background);
+}
+
+html[data-has-background="true"] .grid-dashboard-host {
+  background-color: transparent;
 }
 
 .grid-dashboard-dots {
@@ -176,7 +205,12 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--color-card);
+  background: color-mix(
+    in oklch,
+    var(--color-card) calc(var(--widget-opacity, 1) * 100%),
+    transparent
+  );
+  backdrop-filter: blur(calc((1 - var(--widget-opacity, 1)) * 12px));
   border: 1px solid color-mix(in oklch, var(--color-border) 70%, transparent);
   touch-action: none;
   will-change: transform, width, height;
@@ -195,7 +229,11 @@ body {
   gap: 8px;
   height: 32px;
   padding: 0 10px;
-  background: color-mix(in oklch, var(--color-secondary) 85%, transparent);
+  background: color-mix(
+    in oklch,
+    var(--color-secondary) calc(var(--widget-opacity, 1) * 85%),
+    transparent
+  );
   border-bottom: 1px solid color-mix(in oklch, var(--color-border) 60%, transparent);
 }
 

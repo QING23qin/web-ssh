@@ -1,6 +1,6 @@
 import { LanguageSelect } from "@/components/LanguageSelect";
 import { Modal } from "@/components/Modal";
-import { ThemeSelect } from "@/components/ThemeSelect";
+import { PersonalizationSection } from "@/components/PersonalizationSection";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/i18n";
 
@@ -13,7 +13,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const t = useT();
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange}>
+    <Modal open={open} onOpenChange={onOpenChange} className="max-w-lg">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{t("header.settings")}</h2>
         <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -22,9 +22,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       </div>
 
       <div className="space-y-5">
-        <section className="space-y-2">
-          <ThemeSelect />
-        </section>
+        <PersonalizationSection />
 
         <section className="space-y-2 border-t border-[var(--color-border)] pt-5">
           <LanguageSelect />
