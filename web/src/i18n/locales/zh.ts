@@ -24,6 +24,8 @@ export const zh = {
     addWidget: "添加组件",
     openMode: "开放模式",
     settings: "设置",
+    settingsGeneral: "通用",
+    settingsGeneralHint: "语言等基础选项",
     language: "语言",
     languageHint: "选择界面显示语言",
     theme: "外观",

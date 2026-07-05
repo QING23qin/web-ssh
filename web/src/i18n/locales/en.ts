@@ -26,6 +26,8 @@ export const en: Messages = {
     addWidget: "Add widget",
     openMode: "Open mode",
     settings: "Settings",
+    settingsGeneral: "General",
+    settingsGeneralHint: "Language and other basic options",
     language: "Language",
     languageHint: "Choose the interface language",
     theme: "Appearance",
