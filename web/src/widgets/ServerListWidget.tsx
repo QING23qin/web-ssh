@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/utils";
 import type { TreeNode } from "@/lib/api";
-import { isSessionAlive, type SessionStatus } from "@/lib/sessions";
+import { getServerConnectionStatus, isServerConnected, type SessionStatus } from "@/lib/sessions";
 import {
   collectAllGroupIds,
   collectAncestorGroupIds,
@@ -189,19 +189,26 @@ export function ServerListWidget({
     }
 
     const { id } = menu.target;
-    const session = context.sessions[id];
+    const connected = isServerConnected(context.sessions, id);
     const isActive = context.activeServerId === id;
-    const alive = isSessionAlive(session?.status);
     const items: ContextMenuItem[] = [];
 
-    if (alive && !isActive) {
+    if (connected && !isActive) {
       items.push({
         id: "switch",
         label: t("serverList.switch"),
         onSelect: () => context.onSelectServer(id),
       });
     }
-    if (alive) {
+    if (connected) {
+      items.push({
+        id: "new-terminal",
+        label: t("terminal.newTab"),
+        onSelect: () => {
+          context.onSelectServer(id);
+          context.onAddTerminal(id);
+        },
+      });
       items.push({
         id: "disconnect",
         label: t("serverList.disconnect"),
@@ -336,8 +343,7 @@ export function ServerListWidget({
       );
     }
 
-    const session = context.sessions[node.id];
-    const status = session?.status;
+    const status = getServerConnectionStatus(context.sessions, node.id);
 
     return (
       <>
@@ -430,8 +436,7 @@ export function ServerListWidget({
             const isGroup = node.type === "group";
             const isOpen = isGroup && displayExpanded.has(node.id);
             const isActive = !isGroup && context.activeServerId === node.id;
-            const session = !isGroup ? context.sessions[node.id] : undefined;
-            const connected = isSessionAlive(session?.status);
+            const connected = !isGroup && isServerConnected(context.sessions, node.id);
             const beforeIntent: DropIntent = {
               kind: "before",
               parentId,

@@ -4,7 +4,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api, type Dashboard, type MeResponse, type Server, type TreeNode } from "@/lib/api";
 import {
+  getSessionsForServer,
   isSessionAlive,
+  listSessions,
   MAX_SESSION_RECONNECT_ATTEMPTS,
   SESSION_RECONNECT_DELAY_MS,
   type ServerSession,
@@ -88,6 +90,7 @@ export function DashboardView() {
   const [treeMoving, setTreeMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeServerId, setActiveServerId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Record<string, ServerSession>>({});
   const [serverListExpanded, setServerListExpanded] = useState<Set<string>>(
     () => new Set(),
@@ -114,22 +117,23 @@ export function DashboardView() {
   const dashboardRef = useRef<Dashboard | null>(null);
   const persistTimerRef = useRef<number | null>(null);
   const isEditingRef = useRef(false);
-  const manualDisconnectRef = useRef(new Set<string>());
+  const manualDisconnectServersRef = useRef(new Set<string>());
+  const manualCloseSessionsRef = useRef(new Set<string>());
   const reconnectAttemptRef = useRef(new Map<string, number>());
   const reconnectTimerRef = useRef(new Map<string, number>());
 
-  const clearReconnectTimer = useCallback((serverId: string) => {
-    const timer = reconnectTimerRef.current.get(serverId);
+  const clearReconnectTimer = useCallback((sessionId: string) => {
+    const timer = reconnectTimerRef.current.get(sessionId);
     if (timer !== undefined) {
       window.clearTimeout(timer);
-      reconnectTimerRef.current.delete(serverId);
+      reconnectTimerRef.current.delete(sessionId);
     }
   }, []);
 
   const clearReconnectState = useCallback(
-    (serverId: string) => {
-      clearReconnectTimer(serverId);
-      reconnectAttemptRef.current.delete(serverId);
+    (sessionId: string) => {
+      clearReconnectTimer(sessionId);
+      reconnectAttemptRef.current.delete(sessionId);
     },
     [clearReconnectTimer],
   );
@@ -177,20 +181,22 @@ export function DashboardView() {
   }, []);
 
   const scheduleReconnect = useCallback(
-    (serverId: string) => {
-      if (manualDisconnectRef.current.has(serverId)) return;
-      if (!sessionsRef.current[serverId]) return;
+    (sessionId: string) => {
+      const session = sessionsRef.current[sessionId];
+      if (!session) return;
+      if (manualDisconnectServersRef.current.has(session.serverId)) return;
+      if (manualCloseSessionsRef.current.has(sessionId)) return;
 
-      const nextAttempt = (reconnectAttemptRef.current.get(serverId) ?? 0) + 1;
+      const nextAttempt = (reconnectAttemptRef.current.get(sessionId) ?? 0) + 1;
       if (nextAttempt > MAX_SESSION_RECONNECT_ATTEMPTS) {
-        reconnectAttemptRef.current.delete(serverId);
+        clearReconnectState(sessionId);
         setSessions((current) => {
-          const session = current[serverId];
-          if (!session) return current;
+          const currentSession = current[sessionId];
+          if (!currentSession) return current;
           return {
             ...current,
-            [serverId]: {
-              ...session,
+            [sessionId]: {
+              ...currentSession,
               status: "closed",
               reconnectAttempt: undefined,
             },
@@ -204,64 +210,79 @@ export function DashboardView() {
         return;
       }
 
-      reconnectAttemptRef.current.set(serverId, nextAttempt);
+      reconnectAttemptRef.current.set(sessionId, nextAttempt);
       setSessions((current) => {
-        const session = current[serverId];
-        if (!session) return current;
+        const currentSession = current[sessionId];
+        if (!currentSession) return current;
         return {
           ...current,
-          [serverId]: {
-            ...session,
+          [sessionId]: {
+            ...currentSession,
             status: "connecting",
             reconnectAttempt: nextAttempt,
           },
         };
       });
 
-      clearReconnectTimer(serverId);
+      clearReconnectTimer(sessionId);
       const timer = window.setTimeout(() => {
-        reconnectTimerRef.current.delete(serverId);
+        reconnectTimerRef.current.delete(sessionId);
         void (async () => {
-          if (manualDisconnectRef.current.has(serverId)) return;
-          if (!sessionsRef.current[serverId]) return;
+          const currentSession = sessionsRef.current[sessionId];
+          if (!currentSession) return;
+          if (manualDisconnectServersRef.current.has(currentSession.serverId)) {
+            return;
+          }
+          if (manualCloseSessionsRef.current.has(sessionId)) return;
 
           try {
-            const created = await api.createSession(serverId);
-            if (manualDisconnectRef.current.has(serverId)) return;
-            if (!sessionsRef.current[serverId]) return;
+            const created = await api.createSession(currentSession.serverId);
+            if (manualDisconnectServersRef.current.has(currentSession.serverId)) {
+              return;
+            }
+            if (manualCloseSessionsRef.current.has(sessionId)) return;
+            if (!sessionsRef.current[sessionId]) return;
 
-            setSessions((current) => ({
-              ...current,
-              [serverId]: {
-                serverId,
+            setSessions((current) => {
+              const oldSession = current[sessionId];
+              if (!oldSession) return current;
+              const next = { ...current };
+              delete next[sessionId];
+              next[created.sessionId] = {
+                serverId: oldSession.serverId,
                 sessionId: created.sessionId,
                 wsUrl: created.wsUrl,
                 sftpWsUrl: created.sftpWsUrl,
                 status: "connecting",
                 reconnectAttempt: nextAttempt,
-              },
-            }));
+              };
+              return next;
+            });
+            setActiveSessionId((active) =>
+              active === sessionId ? created.sessionId : active,
+            );
+            clearReconnectState(sessionId);
           } catch {
-            scheduleReconnect(serverId);
+            scheduleReconnect(sessionId);
           }
         })();
       }, SESSION_RECONNECT_DELAY_MS);
-      reconnectTimerRef.current.set(serverId, timer);
+      reconnectTimerRef.current.set(sessionId, timer);
     },
-    [clearReconnectTimer],
+    [clearReconnectState, clearReconnectTimer, t],
   );
 
   const handleSessionStatusChange = useCallback(
-    (serverId: string, status: SessionStatus) => {
+    (sessionId: string, status: SessionStatus) => {
       if (status === "open") {
-        clearReconnectState(serverId);
+        clearReconnectState(sessionId);
       }
       setSessions((current) => {
-        const session = current[serverId];
+        const session = current[sessionId];
         if (!session || session.status === status) return current;
         return {
           ...current,
-          [serverId]: {
+          [sessionId]: {
             ...session,
             status,
             reconnectAttempt:
@@ -274,26 +295,42 @@ export function DashboardView() {
   );
 
   const handleSessionClosed = useCallback(
-    (serverId: string) => {
-      if (manualDisconnectRef.current.has(serverId)) {
-        manualDisconnectRef.current.delete(serverId);
+    (sessionId: string) => {
+      if (manualCloseSessionsRef.current.has(sessionId)) {
+        manualCloseSessionsRef.current.delete(sessionId);
         return;
       }
-      scheduleReconnect(serverId);
+      const session = sessionsRef.current[sessionId];
+      if (!session) return;
+      if (manualDisconnectServersRef.current.has(session.serverId)) return;
+      scheduleReconnect(sessionId);
     },
     [scheduleReconnect],
   );
 
   const handleDisconnectServer = useCallback(
     (serverId: string) => {
-      manualDisconnectRef.current.add(serverId);
-      clearReconnectState(serverId);
+      manualDisconnectServersRef.current.add(serverId);
+      const forServer = getSessionsForServer(sessionsRef.current, serverId);
+      for (const session of forServer) {
+        manualCloseSessionsRef.current.add(session.sessionId);
+        clearReconnectState(session.sessionId);
+      }
+
       setSessions((current) => {
         const next = { ...current };
-        delete next[serverId];
+        for (const session of forServer) {
+          delete next[session.sessionId];
+        }
         setActiveServerId((active) => {
           if (active !== serverId) return active;
-          return Object.keys(next)[0] ?? null;
+          return listSessions(next)[0]?.serverId ?? null;
+        });
+        setActiveSessionId((active) => {
+          if (active && forServer.some((session) => session.sessionId === active)) {
+            return listSessions(next)[0]?.sessionId ?? null;
+          }
+          return active;
         });
         return next;
       });
@@ -301,60 +338,156 @@ export function DashboardView() {
     [clearReconnectState],
   );
 
-  const handleConnectServer = useCallback(async (serverId: string) => {
-    manualDisconnectRef.current.delete(serverId);
-    clearReconnectState(serverId);
+  const handleSelectServer = useCallback((serverId: string) => {
     setActiveServerId(serverId);
-    const existing = sessionsRef.current[serverId];
-    if (existing && isSessionAlive(existing.status)) {
+    setActiveSessionId((current) => {
+      const forServer = getSessionsForServer(sessionsRef.current, serverId);
+      if (forServer.length === 0) return null;
+      if (current && forServer.some((session) => session.sessionId === current)) {
+        return current;
+      }
+      return forServer[0]?.sessionId ?? null;
+    });
+  }, []);
+
+  const handleConnectServer = useCallback(async (serverId: string) => {
+    manualDisconnectServersRef.current.delete(serverId);
+    handleSelectServer(serverId);
+
+    const forServer = getSessionsForServer(sessionsRef.current, serverId);
+    const alive = forServer.find((session) => isSessionAlive(session.status));
+    if (alive) {
+      setActiveSessionId(alive.sessionId);
       return;
     }
 
     try {
-      const session = await api.createSession(serverId);
+      const created = await api.createSession(serverId);
       setSessions((current) => ({
         ...current,
-        [serverId]: {
+        [created.sessionId]: {
           serverId,
-          sessionId: session.sessionId,
-          wsUrl: session.wsUrl,
-          sftpWsUrl: session.sftpWsUrl,
+          sessionId: created.sessionId,
+          wsUrl: created.wsUrl,
+          sftpWsUrl: created.sftpWsUrl,
           status: "connecting",
         },
       }));
+      setActiveSessionId(created.sessionId);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("dashboard.createSessionFailed"));
     }
-  }, [clearReconnectState, t]);
+  }, [handleSelectServer, t]);
+
+  const handleAddTerminal = useCallback(async (serverId?: string) => {
+    const targetServerId = serverId ?? activeServerId;
+    if (!targetServerId) return;
+
+    manualDisconnectServersRef.current.delete(targetServerId);
+    handleSelectServer(targetServerId);
+
+    try {
+      const created = await api.createSession(targetServerId);
+      setSessions((current) => ({
+        ...current,
+        [created.sessionId]: {
+          serverId: targetServerId,
+          sessionId: created.sessionId,
+          wsUrl: created.wsUrl,
+          sftpWsUrl: created.sftpWsUrl,
+          status: "connecting",
+        },
+      }));
+      setActiveSessionId(created.sessionId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("dashboard.createSessionFailed"));
+    }
+  }, [activeServerId, handleSelectServer, t]);
+
+  const handleCloseTerminal = useCallback(
+    (sessionId: string) => {
+      manualCloseSessionsRef.current.add(sessionId);
+      clearReconnectState(sessionId);
+      setSessions((current) => {
+        const session = current[sessionId];
+        if (!session) return current;
+        const next = { ...current };
+        delete next[sessionId];
+        setActiveSessionId((active) => {
+          if (active !== sessionId) return active;
+          const remaining = getSessionsForServer(next, session.serverId);
+          return remaining[0]?.sessionId ?? null;
+        });
+        return next;
+      });
+    },
+    [clearReconnectState],
+  );
 
   const widgetContext = useMemo(
     () => ({
       activeServerId,
+      activeSessionId,
       sessions,
-      onSelectServer: setActiveServerId,
+      onSelectServer: handleSelectServer,
+      onSelectSession: setActiveSessionId,
       onConnectServer: (serverId: string) => {
         void handleConnectServer(serverId);
       },
+      onAddTerminal: (serverId?: string) => {
+        void handleAddTerminal(serverId);
+      },
+      onCloseTerminal: handleCloseTerminal,
       onDisconnectServer: handleDisconnectServer,
     }),
-    [activeServerId, sessions, handleConnectServer, handleDisconnectServer],
+    [
+      activeServerId,
+      activeSessionId,
+      sessions,
+      handleAddTerminal,
+      handleCloseTerminal,
+      handleConnectServer,
+      handleDisconnectServer,
+      handleSelectServer,
+    ],
   );
 
-  const sessionList = useMemo(
-    () => Object.values(sessions),
-    [sessions],
+  const sessionList = useMemo(() => listSessions(sessions), [sessions]);
+
+  const serverSessionsForTerminal = useMemo(
+    () =>
+      activeServerId ? getSessionsForServer(sessions, activeServerId) : [],
+    [activeServerId, sessions],
   );
 
   const terminalBadge = useMemo(() => {
-    const active = activeServerId ? sessions[activeServerId] : null;
-    if (!active) {
+    if (!activeServerId) {
       const openCount = sessionList.filter((item) => item.status === "open").length;
       return openCount > 0
         ? t("dashboard.sessionCount", { count: openCount })
         : t("common.idle");
     }
-    return t(`session.${active.status}`);
-  }, [activeServerId, sessionList, sessions, t]);
+
+    const active = activeSessionId ? sessions[activeSessionId] : null;
+    const tabCount = serverSessionsForTerminal.length;
+    if (tabCount > 1) {
+      return t("terminal.tabCount", {
+        count: tabCount,
+        status: t(`session.${active?.status ?? "closed"}`),
+      });
+    }
+    if (active) {
+      return t(`session.${active.status}`);
+    }
+    return t("common.idle");
+  }, [
+    activeServerId,
+    activeSessionId,
+    serverSessionsForTerminal.length,
+    sessionList,
+    sessions,
+    t,
+  ]);
 
   const existingWidgetTypes = useMemo(
     () => new Set(dashboard?.widgets.map((widget) => widget.type) ?? []),
@@ -530,6 +663,7 @@ export function DashboardView() {
     await api.deleteServer(serverId);
     if (activeServerId === serverId) {
       setActiveServerId(null);
+      setActiveSessionId(null);
     }
     await load();
   };
@@ -675,7 +809,21 @@ export function DashboardView() {
           }
 
           if (widget.type === "terminal") {
-            return <Badge>{terminalBadge}</Badge>;
+            return (
+              <div className="widget-no-drag flex items-center gap-1">
+                <Button
+                  className="widget-no-drag"
+                  disabled={!activeServerId}
+                  size="sm"
+                  title={t("terminal.newTab")}
+                  variant="secondary"
+                  onClick={() => void handleAddTerminal()}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+                <Badge>{terminalBadge}</Badge>
+              </div>
+            );
           }
 
           if (widget.type === "file_manager") {
@@ -814,8 +962,12 @@ export function DashboardView() {
           if (widget.type === "terminal") {
             return (
               <TerminalWidget
-                sessions={sessionList}
+                serverSessions={serverSessionsForTerminal}
                 activeServerId={activeServerId}
+                activeSessionId={activeSessionId}
+                onSelectSession={setActiveSessionId}
+                onAddTerminal={() => void handleAddTerminal()}
+                onCloseTerminal={handleCloseTerminal}
                 onSessionStatusChange={handleSessionStatusChange}
                 onSessionClosed={handleSessionClosed}
               />
@@ -826,6 +978,7 @@ export function DashboardView() {
             return (
               <FileManagerWidget
                 activeServerId={activeServerId}
+                activeSessionId={activeSessionId}
                 sessions={sessions}
               />
             );
@@ -835,6 +988,7 @@ export function DashboardView() {
             return (
               <StatusWidget
                 activeServerId={activeServerId}
+                activeSessionId={activeSessionId}
                 pollIntervalMs={
                   parseStatusWidgetConfig(widget.config_json).pollIntervalMs
                 }
@@ -848,6 +1002,7 @@ export function DashboardView() {
             return (
               <NetworkStatusWidget
                 activeServerId={activeServerId}
+                activeSessionId={activeSessionId}
                 pollIntervalMs={
                   parseStatusWidgetConfig(widget.config_json).pollIntervalMs
                 }
@@ -861,6 +1016,7 @@ export function DashboardView() {
             return (
               <ProcessStatusWidget
                 activeServerId={activeServerId}
+                activeSessionId={activeSessionId}
                 pollIntervalMs={
                   parseStatusWidgetConfig(widget.config_json).pollIntervalMs
                 }
@@ -874,6 +1030,7 @@ export function DashboardView() {
             return (
               <QuickCommandsWidget
                 activeServerId={activeServerId}
+                activeSessionId={activeSessionId}
                 configJson={widget.config_json}
                 sessions={sessions}
                 onConfigChange={(configJson) =>

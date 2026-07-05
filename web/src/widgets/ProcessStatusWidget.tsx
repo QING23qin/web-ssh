@@ -9,12 +9,17 @@ import {
   type ProcessMetrics,
   type ServerStatusMetrics,
 } from "@/lib/server-status";
-import { isSessionAlive, type ServerSession } from "@/lib/sessions";
+import {
+  getPrimarySessionForServer,
+  isSessionAlive,
+  type ServerSession,
+} from "@/lib/sessions";
 import { formatPollIntervalLabel } from "@/lib/status-widget-config";
 import { cn } from "@/lib/utils";
 
 export interface ProcessStatusWidgetProps {
   activeServerId: string | null;
+  activeSessionId: string | null;
   sessions: Record<string, ServerSession>;
   tree: TreeNode[];
   pollIntervalMs: number;
@@ -62,12 +67,15 @@ function ProcessRow({ process }: { process: ProcessMetrics }) {
 
 export function ProcessStatusWidget({
   activeServerId,
+  activeSessionId,
   sessions,
   tree,
   pollIntervalMs,
 }: ProcessStatusWidgetProps) {
   const t = useT();
-  const session = activeServerId ? sessions[activeServerId] : null;
+  const session = activeServerId
+    ? getPrimarySessionForServer(sessions, activeServerId, activeSessionId)
+    : null;
   const server = activeServerId ? findServer(tree, activeServerId) : null;
   const mountedRef = useRef(true);
   const [metrics, setMetrics] = useState<ServerStatusMetrics | null>(null);

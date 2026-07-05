@@ -9,13 +9,18 @@ import {
   formatLoad,
   type ServerStatusMetrics,
 } from "@/lib/server-status";
-import { isSessionAlive, type ServerSession } from "@/lib/sessions";
+import {
+  getPrimarySessionForServer,
+  isSessionAlive,
+  type ServerSession,
+} from "@/lib/sessions";
 import { formatPollIntervalLabel } from "@/lib/status-widget-config";
 import { cn } from "@/lib/utils";
 import { MetricBar } from "@/widgets/shared/MetricBar";
 
 export interface StatusWidgetProps {
   activeServerId: string | null;
+  activeSessionId: string | null;
   sessions: Record<string, ServerSession>;
   tree: TreeNode[];
   pollIntervalMs: number;
@@ -36,12 +41,15 @@ function findServer(tree: TreeNode[], serverId: string): Server | null {
 
 export function StatusWidget({
   activeServerId,
+  activeSessionId,
   sessions,
   tree,
   pollIntervalMs,
 }: StatusWidgetProps) {
   const t = useT();
-  const session = activeServerId ? sessions[activeServerId] : null;
+  const session = activeServerId
+    ? getPrimarySessionForServer(sessions, activeServerId, activeSessionId)
+    : null;
   const server = activeServerId ? findServer(tree, activeServerId) : null;
   const mountedRef = useRef(true);
   const [metrics, setMetrics] = useState<ServerStatusMetrics | null>(null);

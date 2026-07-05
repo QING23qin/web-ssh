@@ -16,7 +16,11 @@ import { ContextMenu, type ContextMenuItem } from "@/components/ContextMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useT } from "@/i18n";
-import { isSessionAlive, type ServerSession } from "@/lib/sessions";
+import {
+  getPrimarySessionForServer,
+  isSessionAlive,
+  type ServerSession,
+} from "@/lib/sessions";
 import {
   collectDroppedFiles,
   collectFileInputItems,
@@ -31,6 +35,7 @@ import { cn } from "@/lib/utils";
 
 export interface FileManagerWidgetProps {
   activeServerId: string | null;
+  activeSessionId: string | null;
   sessions: Record<string, ServerSession>;
 }
 
@@ -87,10 +92,13 @@ function formatModifiedTime(timestamp: number): string {
 
 export function FileManagerWidget({
   activeServerId,
+  activeSessionId,
   sessions,
 }: FileManagerWidgetProps) {
   const t = useT();
-  const session = activeServerId ? sessions[activeServerId] : null;
+  const session = activeServerId
+    ? getPrimarySessionForServer(sessions, activeServerId, activeSessionId)
+    : null;
   const clientRef = useRef<SftpClient | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const folderInputRef = useRef<HTMLInputElement | null>(null);

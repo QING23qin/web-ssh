@@ -3,9 +3,13 @@ import type { ServerSession, SessionStatus } from "@/lib/sessions";
 
 export interface WidgetContext {
   activeServerId: string | null;
+  activeSessionId: string | null;
   sessions: Record<string, ServerSession>;
   onSelectServer: (serverId: string) => void;
+  onSelectSession: (sessionId: string) => void;
   onConnectServer: (serverId: string) => void;
+  onAddTerminal: (serverId?: string) => void;
+  onCloseTerminal: (sessionId: string) => void;
   onDisconnectServer: (serverId: string) => void;
 }
 
@@ -35,9 +39,13 @@ export interface ServerListWidgetProps extends WidgetProps {
 }
 
 export interface TerminalWidgetProps {
-  sessions: ServerSession[];
+  serverSessions: ServerSession[];
   activeServerId: string | null;
-  onSessionStatusChange: (serverId: string, status: SessionStatus) => void;
-  onSessionClosed: (serverId: string) => void;
+  activeSessionId: string | null;
+  onSelectSession: (sessionId: string) => void;
+  onAddTerminal: () => void;
+  onCloseTerminal: (sessionId: string) => void;
+  onSessionStatusChange: (sessionId: string, status: SessionStatus) => void;
+  onSessionClosed: (sessionId: string) => void;
   onStatusChange?: (status: string) => void;
 }

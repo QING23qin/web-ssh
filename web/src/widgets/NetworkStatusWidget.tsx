@@ -7,7 +7,11 @@ import {
   type NetInterfaceMetrics,
   type ServerStatusMetrics,
 } from "@/lib/server-status";
-import { isSessionAlive, type ServerSession } from "@/lib/sessions";
+import {
+  getPrimarySessionForServer,
+  isSessionAlive,
+  type ServerSession,
+} from "@/lib/sessions";
 import {
   BANDWIDTH_HISTORY_MS,
   formatPollIntervalLabel,
@@ -21,6 +25,7 @@ import {
 
 export interface NetworkStatusWidgetProps {
   activeServerId: string | null;
+  activeSessionId: string | null;
   sessions: Record<string, ServerSession>;
   tree: TreeNode[];
   pollIntervalMs: number;
@@ -65,12 +70,15 @@ function interfaceKeys(interfaces: NetInterfaceMetrics[]): string[] {
 
 export function NetworkStatusWidget({
   activeServerId,
+  activeSessionId,
   sessions,
   tree,
   pollIntervalMs,
 }: NetworkStatusWidgetProps) {
   const t = useT();
-  const session = activeServerId ? sessions[activeServerId] : null;
+  const session = activeServerId
+    ? getPrimarySessionForServer(sessions, activeServerId, activeSessionId)
+    : null;
   const server = activeServerId ? findServer(tree, activeServerId) : null;
   const mountedRef = useRef(true);
   const [metrics, setMetrics] = useState<ServerStatusMetrics | null>(null);

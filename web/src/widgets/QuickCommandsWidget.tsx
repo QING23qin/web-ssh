@@ -7,12 +7,18 @@ import {
   serializeQuickCommandsConfig,
   type QuickCommandItem,
 } from "@/lib/quick-commands-config";
-import { isSessionAlive, type ServerSession } from "@/lib/sessions";
+import {
+  getPrimarySessionForServer,
+  isSessionAlive,
+  listSessions,
+  type ServerSession,
+} from "@/lib/sessions";
 import { runTerminalCommand } from "@/lib/terminal-bridge";
 import { cn } from "@/lib/utils";
 
 export interface QuickCommandsWidgetProps {
   activeServerId: string | null;
+  activeSessionId: string | null;
   sessions: Record<string, ServerSession>;
   configJson: string | null;
   onConfigChange: (configJson: string) => void;
@@ -93,6 +99,7 @@ function sessionStatusLabel(
 
 export function QuickCommandsWidget({
   activeServerId,
+  activeSessionId,
   sessions,
   configJson,
   onConfigChange,
@@ -103,13 +110,18 @@ export function QuickCommandsWidget({
     [configJson],
   );
   const targetMode = config.targetMode ?? "current";
-  const session = activeServerId ? sessions[activeServerId] : null;
+  const session =
+    activeSessionId && sessions[activeSessionId]?.serverId === activeServerId
+      ? sessions[activeSessionId]
+      : activeServerId
+        ? getPrimarySessionForServer(sessions, activeServerId, activeSessionId)
+        : null;
   const alive = session ? isSessionAlive(session.status) : false;
   const aliveSessionIds = useMemo(
     () =>
-      Object.entries(sessions)
-        .filter(([, item]) => isSessionAlive(item.status))
-        .map(([id]) => id),
+      listSessions(sessions)
+        .filter((item) => isSessionAlive(item.status))
+        .map((item) => item.sessionId),
     [sessions],
   );
   const canRun =
@@ -139,8 +151,8 @@ export function QuickCommandsWidget({
         }
 
         let sent = 0;
-        for (const serverId of aliveSessionIds) {
-          if (runTerminalCommand(serverId, command)) {
+        for (const sessionId of aliveSessionIds) {
+          if (runTerminalCommand(sessionId, command)) {
             sent += 1;
           }
         }
@@ -169,7 +181,7 @@ export function QuickCommandsWidget({
         return;
       }
 
-      const ok = runTerminalCommand(activeServerId, command);
+      const ok = runTerminalCommand(session.sessionId, command);
       if (!ok) {
         setError(t("quickCommands.sendFailed"));
         return;
@@ -179,7 +191,7 @@ export function QuickCommandsWidget({
       setLastRunKey(key);
       window.setTimeout(() => setLastRunKey(null), 1200);
     },
-    [activeServerId, alive, aliveSessionIds, session?.status, t, targetMode],
+    [activeServerId, activeSessionId, alive, aliveSessionIds, session?.sessionId, session?.status, t, targetMode],
   );
 
   const handleDelete = useCallback(

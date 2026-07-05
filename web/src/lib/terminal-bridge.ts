@@ -3,20 +3,20 @@ type RunCommandFn = (command: string) => boolean;
 const runners = new Map<string, RunCommandFn>();
 
 export function registerTerminalRunner(
-  serverId: string,
+  sessionId: string,
   run: RunCommandFn,
 ): () => void {
-  runners.set(serverId, run);
+  runners.set(sessionId, run);
   return () => {
-    if (runners.get(serverId) === run) {
-      runners.delete(serverId);
+    if (runners.get(sessionId) === run) {
+      runners.delete(sessionId);
     }
   };
 }
 
 export function runTerminalCommand(
-  serverId: string,
+  sessionId: string,
   command: string,
 ): boolean {
-  return runners.get(serverId)?.(command) ?? false;
+  return runners.get(sessionId)?.(command) ?? false;
 }

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import { TerminalSuggestionBar } from "@/components/TerminalSuggestionBar";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { usePersonalization, type TerminalThemeColors } from "@/theme";
 import {
@@ -117,10 +119,10 @@ function SessionPane({
   };
 
   useEffect(() => {
-    return registerTerminalRunner(session.serverId, (command) =>
+    return registerTerminalRunner(session.sessionId, (command) =>
       runCommandRef.current(command),
     );
-  }, [session.serverId]);
+  }, [session.sessionId]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -149,7 +151,7 @@ function SessionPane({
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [session.serverId]);
+  }, [session.sessionId]);
 
   useEffect(() => {
     const terminal = terminalRef.current;
@@ -318,7 +320,7 @@ function SessionPane({
       wsRef.current = null;
       runCommandRef.current = () => false;
     };
-  }, [session.reconnectAttempt, session.serverId, session.wsUrl, t]);
+  }, [session.reconnectAttempt, session.serverId, session.sessionId, session.wsUrl, t]);
 
   useEffect(() => {
     if (!active) return;
@@ -358,17 +360,28 @@ function SessionPane({
   );
 }
 
+function sessionTabStatusClass(status: ServerSession["status"]): string {
+  if (status === "open") return "bg-[var(--color-primary)]";
+  if (status === "connecting") return "bg-[var(--color-muted-foreground)] animate-pulse";
+  if (status === "error") return "bg-[var(--color-destructive)]";
+  return "bg-[var(--color-muted-foreground)]/40";
+}
+
 export function TerminalWidget({
-  sessions,
+  serverSessions,
   activeServerId,
+  activeSessionId,
+  onSelectSession,
+  onAddTerminal,
+  onCloseTerminal,
   onSessionStatusChange,
   onSessionClosed,
   onStatusChange,
 }: TerminalWidgetProps) {
   const { t } = useI18n();
   const { resolvedTerminalColors } = usePersonalization();
-  const activeSession = sessions.find(
-    (session) => session.serverId === activeServerId,
+  const activeSession = serverSessions.find(
+    (session) => session.sessionId === activeSessionId,
   );
 
   useEffect(() => {
@@ -377,27 +390,87 @@ export function TerminalWidget({
 
   return (
     <div className="relative flex h-full min-h-0 flex-col p-3">
-      {sessions.length === 0 && (
+      {!activeServerId && (
         <p className="mb-2 text-sm text-[var(--color-muted-foreground)]">
           {t("terminal.emptyHint")}
         </p>
       )}
-      {sessions.length > 0 && (
+
+      {activeServerId && (
+        <div className="mb-2 flex min-h-8 items-center gap-1 overflow-x-auto">
+          {serverSessions.map((session, index) => {
+            const isActive = session.sessionId === activeSessionId;
+            return (
+              <div
+                key={session.sessionId}
+                className={cn(
+                  "flex h-7 shrink-0 items-center gap-1 rounded border px-2 text-xs",
+                  isActive
+                    ? "border-[var(--color-primary)] bg-[color-mix(in_oklch,var(--color-primary)_12%,transparent)]"
+                    : "border-[var(--color-border)] bg-[var(--color-secondary)]",
+                )}
+              >
+                <button
+                  type="button"
+                  className="flex min-w-0 items-center gap-1.5"
+                  onClick={() => onSelectSession(session.sessionId)}
+                >
+                  <span
+                    className={cn(
+                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                      sessionTabStatusClass(session.status),
+                    )}
+                  />
+                  <span className="truncate">
+                    {t("terminal.tab", { index: index + 1 })}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[var(--color-muted-foreground)] hover:bg-[var(--color-muted)] hover:text-[var(--color-foreground)]"
+                  title={t("terminal.closeTab")}
+                  onClick={() => onCloseTerminal(session.sessionId)}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
+          <Button
+            className="h-7 shrink-0 px-2"
+            size="sm"
+            title={t("terminal.newTab")}
+            variant="secondary"
+            onClick={onAddTerminal}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      )}
+
+      {activeServerId && serverSessions.length > 0 && (
         <p className="mb-2 text-[11px] text-[var(--color-muted-foreground)]">
           {t("terminal.suggestHint")}
         </p>
       )}
+
+      {activeServerId && serverSessions.length === 0 && (
+        <p className="mb-2 text-sm text-[var(--color-muted-foreground)]">
+          {t("terminal.noTabsHint")}
+        </p>
+      )}
+
       <div className="relative min-h-0 flex-1">
-        {sessions.map((session) => (
+        {serverSessions.map((session) => (
           <SessionPane
-            key={`${session.serverId}:${session.sessionId}`}
-            active={session.serverId === activeServerId}
+            key={session.sessionId}
+            active={session.sessionId === activeSessionId}
             terminalColors={resolvedTerminalColors}
             session={session}
             t={t}
-            onClosed={() => onSessionClosed(session.serverId)}
+            onClosed={() => onSessionClosed(session.sessionId)}
             onStatusChange={(status) =>
-              onSessionStatusChange(session.serverId, status)
+              onSessionStatusChange(session.sessionId, status)
             }
           />
         ))}
