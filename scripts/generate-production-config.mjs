@@ -10,6 +10,19 @@ const productionPath = path.join(root, "wrangler.production.jsonc");
 
 const requireConfig = process.argv.includes("--require");
 
+function isCiBuild() {
+  return (
+    process.env.CI === "true" ||
+    process.env.CF_PAGES === "1" ||
+    process.env.WORKERS_CI === "1" ||
+    fs.existsSync("/opt/buildhome")
+  );
+}
+
+function shouldResolveProduction() {
+  return requireConfig || isCiBuild();
+}
+
 function readDatabaseName() {
   const content = fs.readFileSync(basePath, "utf8");
   const match = content.match(/"database_name"\s*:\s*"([^"]+)"/);
@@ -35,9 +48,22 @@ function readIdsFromFile(filePath) {
 
 function discoverD1FromCloudflare(databaseName) {
   try {
+    const env = { ...process.env };
+    const accountId =
+      process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ||
+      process.env.CF_ACCOUNT_ID?.trim();
+    if (accountId) {
+      env.CLOUDFLARE_ACCOUNT_ID = accountId;
+    }
+
+    console.log(
+      `Looking up remote D1 database "${databaseName}" via wrangler d1 list...`,
+    );
+
     const output = execSync("npx wrangler d1 list --json", {
       cwd: root,
       encoding: "utf8",
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     const databases = JSON.parse(output);
@@ -59,14 +85,15 @@ function discoverD1FromCloudflare(databaseName) {
     );
     return {
       d1: matches[0].uuid,
-      account: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || undefined,
+      account: accountId || undefined,
     };
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.stderr?.toString() || error.message
-        : String(error);
-    console.warn(`Auto-discover D1 failed: ${message}`);
+    const stderr =
+      error && typeof error === "object" && "stderr" in error
+        ? String(error.stderr)
+        : "";
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`Auto-discover D1 failed: ${stderr || message}`);
     return null;
   }
 }
@@ -74,18 +101,25 @@ function discoverD1FromCloudflare(databaseName) {
 function resolveProductionIds() {
   const envD1 = process.env.D1_DATABASE_ID?.trim();
   if (envD1) {
+    console.log("Using D1_DATABASE_ID from environment.");
     return {
       d1: envD1,
-      account: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() || undefined,
+      account:
+        process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ||
+        process.env.CF_ACCOUNT_ID?.trim() ||
+        undefined,
     };
   }
 
   if (fs.existsSync(productionPath)) {
     const fromFile = readIdsFromFile(productionPath);
-    if (fromFile) return fromFile;
+    if (fromFile) {
+      console.log("Using wrangler.production.jsonc.");
+      return fromFile;
+    }
   }
 
-  if (requireConfig) {
+  if (shouldResolveProduction()) {
     return discoverD1FromCloudflare(readDatabaseName());
   }
 
@@ -137,25 +171,28 @@ function printSetupHelp(databaseName) {
     [
       "Missing production D1 config for deploy.",
       "",
-      "Option A — auto (Cloudflare Builds):",
-      "  Deploy command: npm run cf:deploy",
-      "  Requires a remote D1 database named \"" + databaseName + "\" on the connected account.",
+      "Cloudflare Workers Builds:",
+      "  1. Ensure a D1 database named \"" + databaseName + "\" exists on this account",
+      "  2. Build command:  npm run build",
+      "  3. Deploy command: npm run cf:deploy",
       "",
-      "Option B — set build environment variable:",
+      "Or set build environment variable:",
       "  D1_DATABASE_ID=<uuid from: wrangler d1 list>",
-      "  CLOUDFLARE_ACCOUNT_ID=<optional if only one account>",
       "",
-      "Option C — local manual deploy:",
-      "  npm run deploy:config",
-      "  # edit wrangler.production.jsonc, then npm run deploy",
+      "Local manual deploy:",
+      "  npm run deploy:config && edit wrangler.production.jsonc && npm run deploy",
     ].join("\n"),
   );
 }
 
+console.log(
+  `[generate-production-config] ci=${isCiBuild()} require=${requireConfig}`,
+);
+
 const ids = resolveProductionIds();
 
 if (!ids) {
-  if (requireConfig) {
+  if (shouldResolveProduction()) {
     printSetupHelp(readDatabaseName());
     process.exit(1);
   }
