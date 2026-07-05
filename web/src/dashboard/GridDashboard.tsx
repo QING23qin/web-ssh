@@ -6,6 +6,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { GripVertical } from "lucide-react";
 import {
   containerHeightFromPixels,
   gridSteps,
@@ -291,11 +292,14 @@ export function GridDashboard({
             data-resizing={isResizing || undefined}
           >
             <div className="widget-drag-handle">
-              <span
+              <button
+                type="button"
                 className="widget-drag-grip"
                 onPointerDown={(event) => startDrag(item, event)}
                 aria-label={t("grid.dragMove")}
-              />
+              >
+                <GripVertical className="h-3.5 w-3.5 text-[var(--color-muted-foreground)]" />
+              </button>
               <span className="widget-drag-label">{getItemTitle(item)}</span>
               {renderHandleActions && (
                 <div

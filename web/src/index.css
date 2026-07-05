@@ -236,19 +236,17 @@ html[data-has-background="true"] .grid-dashboard-host {
 }
 
 .widget-drag-grip {
-  display: block;
+  display: flex;
   flex-shrink: 0;
-  width: 32px;
-  height: 12px;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   cursor: grab;
   touch-action: none;
-  background: radial-gradient(
-    circle,
-    var(--color-muted-foreground) 2px,
-    transparent 2px
-  );
-  background-size: 8px 4px;
-  background-position: center;
 }
 
 .widget-drag-grip:active {
