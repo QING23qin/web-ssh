@@ -19,6 +19,10 @@
   </a>
 </p>
 
+<p align="center">
+  <img src="docs/preview.png" alt="ternssh 仪表盘预览" width="900" />
+</p>
+
 ---
 
 ## 简介
