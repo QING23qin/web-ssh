@@ -13,10 +13,10 @@ export interface WidgetProps {
 export interface ServerListWidgetProps extends WidgetProps {
   servers: Server[];
   loading: boolean;
-  onAddServer: () => void;
   onDeleteServer: (serverId: string) => void;
 }
 
 export interface TerminalWidgetProps extends WidgetProps {
   sessionWsUrl: string | null;
+  onStatusChange?: (status: string) => void;
 }

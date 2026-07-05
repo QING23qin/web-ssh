@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { api, type Dashboard, type Server } from "@/lib/api";
 import { ServerListWidget } from "@/widgets/ServerListWidget";
 import { TerminalWidget } from "@/widgets/TerminalWidget";
@@ -6,6 +9,13 @@ import type { WidgetContext } from "@/widgets/types";
 import { AddServerDialog } from "./AddServerDialog";
 import { GridDashboard } from "./GridDashboard";
 import { layoutsEqual, type GridItem } from "./grid-utils";
+
+const WIDGET_TITLES: Record<string, string> = {
+  server_list: "服务器",
+  terminal: "终端",
+  file_manager: "文件管理",
+  status: "状态",
+};
 
 function widgetsToLayout(widgets: Dashboard["widgets"]): GridItem[] {
   return widgets.map((widget) => ({
@@ -49,6 +59,7 @@ export function DashboardView() {
   const [error, setError] = useState<string | null>(null);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [sessionWsUrl, setSessionWsUrl] = useState<string | null>(null);
+  const [terminalStatus, setTerminalStatus] = useState("idle");
   const [addOpen, setAddOpen] = useState(false);
   const dashboardRef = useRef<Dashboard | null>(null);
   const persistTimerRef = useRef<number | null>(null);
@@ -169,6 +180,35 @@ export function DashboardView() {
       <GridDashboard
         layout={layout}
         onLayoutChange={handleLayoutChange}
+        getItemTitle={(item) => {
+          const widget = widgetById.get(item.i);
+          if (!widget) return "组件";
+          return WIDGET_TITLES[widget.type] ?? widget.type;
+        }}
+        renderHandleActions={(item) => {
+          const widget = widgetById.get(item.i);
+          if (!widget) return null;
+
+          if (widget.type === "server_list") {
+            return (
+              <Button
+                className="widget-no-drag"
+                size="sm"
+                variant="secondary"
+                onClick={() => setAddOpen(true)}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                添加
+              </Button>
+            );
+          }
+
+          if (widget.type === "terminal") {
+            return <Badge>{terminalStatus}</Badge>;
+          }
+
+          return null;
+        }}
         renderItem={(item) => {
           const widget = widgetById.get(item.i);
           if (!widget) return null;
@@ -179,7 +219,6 @@ export function DashboardView() {
                 servers={servers}
                 loading={loading}
                 context={widgetContext}
-                onAddServer={() => setAddOpen(true)}
                 onDeleteServer={(serverId) => void handleDeleteServer(serverId)}
               />
             );
@@ -190,12 +229,13 @@ export function DashboardView() {
               <TerminalWidget
                 context={widgetContext}
                 sessionWsUrl={sessionWsUrl}
+                onStatusChange={setTerminalStatus}
               />
             );
           }
 
           return (
-            <div className="flex h-full items-center justify-center rounded-xl border text-sm text-[var(--color-muted-foreground)]">
+            <div className="flex h-full items-center justify-center p-3 text-sm text-[var(--color-muted-foreground)]">
               {widget.type} 即将推出
             </div>
           );

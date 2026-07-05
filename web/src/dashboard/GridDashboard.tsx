@@ -22,6 +22,8 @@ interface GridDashboardProps {
   rowHeight?: number;
   margin?: [number, number];
   onLayoutChange: (layout: GridItem[]) => void;
+  getItemTitle: (item: GridItem) => string;
+  renderHandleActions?: (item: GridItem) => ReactNode;
   renderItem: (item: GridItem) => ReactNode;
 }
 
@@ -64,6 +66,8 @@ export function GridDashboard({
   rowHeight = 40,
   margin = [12, 12],
   onLayoutChange,
+  getItemTitle,
+  renderHandleActions,
   renderItem,
 }: GridDashboardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -289,7 +293,15 @@ export function GridDashboard({
               onPointerDown={(event) => startDrag(item, event)}
             >
               <span className="widget-drag-grip" />
-              <span className="widget-drag-label">拖拽移动</span>
+              <span className="widget-drag-label">{getItemTitle(item)}</span>
+              {renderHandleActions && (
+                <div
+                  className="widget-drag-actions widget-no-drag"
+                  onPointerDown={(event) => event.stopPropagation()}
+                >
+                  {renderHandleActions(item)}
+                </div>
+              )}
             </div>
             <div className="widget-body">{renderItem(item)}</div>
             <div

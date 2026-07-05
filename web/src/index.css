@@ -159,6 +159,7 @@ body {
 
 .widget-drag-grip {
   display: block;
+  flex-shrink: 0;
   width: 32px;
   height: 4px;
   border-radius: 999px;
@@ -166,10 +167,22 @@ body {
 }
 
 .widget-drag-label {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted-foreground);
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-foreground);
+}
+
+.widget-drag-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
 .widget-body {
