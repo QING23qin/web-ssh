@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Modal } from "@/components/Modal";
 import { PrivateKeyField } from "@/components/PrivateKeyField";
+import { PasswordField } from "@/components/PasswordField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { api } from "@/lib/api";
 import { maybeSavePrivateKey } from "@/lib/saved-private-keys";
+import { maybeSavePassword } from "@/lib/saved-passwords";
 
 interface AddServerDialogProps {
   open: boolean;
@@ -32,6 +34,8 @@ export function AddServerDialog({
   const [credential, setCredential] = useState("");
   const [saveKey, setSaveKey] = useState(false);
   const [keyName, setKeyName] = useState("");
+  const [savePassword, setSavePassword] = useState(false);
+  const [passwordName, setPasswordName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,6 +50,8 @@ export function AddServerDialog({
     setCredential("");
     setSaveKey(false);
     setKeyName("");
+    setSavePassword(false);
+    setPasswordName("");
     setError(null);
   };
 
@@ -66,6 +72,8 @@ export function AddServerDialog({
       });
       if (authType === "private_key") {
         maybeSavePrivateKey(keyName, trimmedCredential, saveKey);
+      } else {
+        maybeSavePassword(passwordName, trimmedCredential, savePassword);
       }
       reset();
       await onCreated();
@@ -145,11 +153,14 @@ export function AddServerDialog({
                 : t("addServer.privateKeyContent")}
             </Label>
             {authType === "password" ? (
-              <Input
+              <PasswordField
                 id="credential"
-                type="password"
                 value={credential}
-                onChange={(event) => setCredential(event.target.value)}
+                onChange={setCredential}
+                savePassword={savePassword}
+                onSavePasswordChange={setSavePassword}
+                passwordName={passwordName}
+                onPasswordNameChange={setPasswordName}
                 required
               />
             ) : (

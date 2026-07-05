@@ -161,6 +161,13 @@ export const zh = {
     keyNamePlaceholder: "私钥名称（便于识别）",
     deleteSavedKey: "删除已保存的私钥",
   },
+  savedPassword: {
+    savedPasswords: "已保存的密码",
+    selectSavedPassword: "选择已保存的密码",
+    saveForLater: "保存密码以便后续使用",
+    namePlaceholder: "密码名称（便于识别）",
+    deleteSavedPassword: "删除已保存的密码",
+  },
   addGroup: {
     title: "新建分组",
     name: "分组名称",

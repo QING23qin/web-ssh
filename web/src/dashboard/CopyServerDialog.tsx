@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { PrivateKeyField } from "@/components/PrivateKeyField";
+import { PasswordField } from "@/components/PasswordField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { api, type Server } from "@/lib/api";
 import { maybeSavePrivateKey } from "@/lib/saved-private-keys";
+import { maybeSavePassword } from "@/lib/saved-passwords";
 
 interface CopyServerDialogProps {
   open: boolean;
@@ -32,6 +34,8 @@ export function CopyServerDialog({
   const [credential, setCredential] = useState("");
   const [saveKey, setSaveKey] = useState(false);
   const [keyName, setKeyName] = useState("");
+  const [savePassword, setSavePassword] = useState(false);
+  const [passwordName, setPasswordName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +49,8 @@ export function CopyServerDialog({
     setCredential("");
     setSaveKey(false);
     setKeyName("");
+    setSavePassword(false);
+    setPasswordName("");
     setError(null);
   }, [open, source, t]);
 
@@ -67,6 +73,8 @@ export function CopyServerDialog({
       });
       if (authType === "private_key" && trimmedCredential) {
         maybeSavePrivateKey(keyName, trimmedCredential, saveKey);
+      } else if (authType === "password" && trimmedCredential) {
+        maybeSavePassword(passwordName, trimmedCredential, savePassword);
       }
       onOpenChange(false);
       await onCopied();
@@ -146,11 +154,14 @@ export function CopyServerDialog({
               : t("addServer.privateKeyContent")}
           </Label>
           {authType === "password" ? (
-            <Input
+            <PasswordField
               id="copy-credential"
-              type="password"
               value={credential}
-              onChange={(event) => setCredential(event.target.value)}
+              onChange={setCredential}
+              savePassword={savePassword}
+              onSavePasswordChange={setSavePassword}
+              passwordName={passwordName}
+              onPasswordNameChange={setPasswordName}
               placeholder={t("copyServer.credentialPlaceholder")}
             />
           ) : (

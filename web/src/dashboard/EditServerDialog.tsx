@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@/components/Modal";
 import { PrivateKeyField } from "@/components/PrivateKeyField";
+import { PasswordField } from "@/components/PasswordField";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/i18n";
 import { api, type Server } from "@/lib/api";
 import { maybeSavePrivateKey } from "@/lib/saved-private-keys";
+import { maybeSavePassword } from "@/lib/saved-passwords";
 
 interface EditServerDialogProps {
   open: boolean;
@@ -32,6 +34,8 @@ export function EditServerDialog({
   const [credential, setCredential] = useState("");
   const [saveKey, setSaveKey] = useState(false);
   const [keyName, setKeyName] = useState("");
+  const [savePassword, setSavePassword] = useState(false);
+  const [passwordName, setPasswordName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +49,8 @@ export function EditServerDialog({
     setCredential("");
     setSaveKey(false);
     setKeyName("");
+    setSavePassword(false);
+    setPasswordName("");
     setError(null);
   }, [open, server]);
 
@@ -69,8 +75,10 @@ export function EditServerDialog({
         auth_type: authType,
         ...(trimmedCredential ? { credential: trimmedCredential } : {}),
       });
-      if (authType === "private_key") {
+      if (authType === "private_key" && trimmedCredential) {
         maybeSavePrivateKey(keyName, trimmedCredential, saveKey);
+      } else if (authType === "password" && trimmedCredential) {
+        maybeSavePassword(passwordName, trimmedCredential, savePassword);
       }
       onOpenChange(false);
       await onUpdated();
@@ -150,11 +158,14 @@ export function EditServerDialog({
               : t("addServer.privateKeyContent")}
           </Label>
           {authType === "password" ? (
-            <Input
+            <PasswordField
               id="edit-credential"
-              type="password"
               value={credential}
-              onChange={(event) => setCredential(event.target.value)}
+              onChange={setCredential}
+              savePassword={savePassword}
+              onSavePasswordChange={setSavePassword}
+              passwordName={passwordName}
+              onPasswordNameChange={setPasswordName}
               placeholder={t("editServer.credentialPlaceholder")}
             />
           ) : (

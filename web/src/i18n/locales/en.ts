@@ -168,6 +168,13 @@ export const en: Messages = {
     keyNamePlaceholder: "Key name (for identification)",
     deleteSavedKey: "Delete saved private key",
   },
+  savedPassword: {
+    savedPasswords: "Saved passwords",
+    selectSavedPassword: "Select a saved password",
+    saveForLater: "Save password for later use",
+    namePlaceholder: "Password name (for identification)",
+    deleteSavedPassword: "Delete saved password",
+  },
   addGroup: {
     title: "New group",
     name: "Group name",
