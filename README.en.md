@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="web/public/logo.png" alt="ternssh logo" width="96" height="96" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="web/public/favicon-dark.svg" />
+    <source media="(prefers-color-scheme: light)" srcset="web/public/favicon-light.svg" />
+    <img src="web/public/favicon-light.svg" alt="ternssh logo" width="96" height="96" />
+  </picture>
 </p>
 
 <h1 align="center">ternssh</h1>
@@ -267,7 +271,9 @@ docker run -d \
 ```
 ternssh/
 ├── web/                    # Frontend (React + Vite)
-│   ├── public/logo.png     # Project logo (favicon / header)
+│   ├── public/favicon-light.svg  # Logo (light)
+│   ├── public/favicon-dark.svg   # Logo (dark)
+│   ├── public/logo.png           # Header PNG fallback
 │   └── src/
 │       ├── components/     # UI, settings, credential fields, CodeEditor
 │       ├── dashboard/      # Grid layout, dialogs

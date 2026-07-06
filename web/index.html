@@ -2,7 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo.png" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon-light.svg"
+      media="(prefers-color-scheme: light)"
+    />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/favicon-dark.svg"
+      media="(prefers-color-scheme: dark)"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon-light.svg" id="app-favicon" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ternssh</title>
     <script>
@@ -43,6 +55,14 @@
             : mode;
         document.documentElement.dataset.theme = resolved;
         document.documentElement.style.colorScheme = resolved;
+
+        var favicon = document.getElementById("app-favicon");
+        if (favicon) {
+          favicon.setAttribute(
+            "href",
+            resolved === "dark" ? "/favicon-dark.svg" : "/favicon-light.svg",
+          );
+        }
 
         var siteName = localStorage.getItem("ternssh-site-name");
         if (siteName && siteName.trim()) {

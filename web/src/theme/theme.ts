@@ -1,3 +1,5 @@
+import { applyFavicon } from "@/lib/favicon";
+
 export type ThemeMode = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
@@ -38,6 +40,7 @@ export function applyTheme(mode: ThemeMode): ResolvedTheme {
   const resolved = resolveTheme(mode);
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
+  applyFavicon(resolved);
   return resolved;
 }
 
