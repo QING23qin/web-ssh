@@ -84,7 +84,7 @@ export function parseProcessLimitParam(
 function buildProcessMetricsCommand(processLimit: number): string {
   const limit = clampProcessLimit(processLimit);
   // One ps pass: awk keeps top-N by CPU without ps --sort scanning/sorting every process twice.
-  return `ps -eo pid=,user=,pcpu=,pmem=,rss=,stat=,args= --no-headers 2>/dev/null | awk -v limit=${limit} '
+  return `ps -eo pid=,user=,pcpu=,pmem=,rss=,stat=,args= 2>/dev/null | awk -v limit=${limit} '
 {
   proccnt++
   name=$7
