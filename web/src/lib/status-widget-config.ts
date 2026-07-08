@@ -6,17 +6,15 @@ export const DEFAULT_PROCESS_LIMIT = 10;
 export const MIN_PROCESS_LIMIT = 1;
 export const MAX_PROCESS_LIMIT = 50;
 
-export interface StatusWidgetConfig {
-  pollIntervalMs: number;
-  processLimit?: number;
+export interface ProcessWidgetConfig {
+  processLimit: number;
 }
 
-const DEFAULT_CONFIG: StatusWidgetConfig = {
-  pollIntervalMs: DEFAULT_POLL_INTERVAL_MS,
+const DEFAULT_PROCESS_CONFIG: ProcessWidgetConfig = {
   processLimit: DEFAULT_PROCESS_LIMIT,
 };
 
-function clampPollIntervalMs(value: number): number {
+export function clampPollIntervalMs(value: number): number {
   return Math.min(
     MAX_POLL_INTERVAL_MS,
     Math.max(MIN_POLL_INTERVAL_MS, Math.round(value)),
@@ -30,45 +28,27 @@ function clampProcessLimit(value: number): number {
   );
 }
 
-export function parseStatusWidgetConfig(
+export function parseProcessWidgetConfig(
   configJson: string | null | undefined,
-): StatusWidgetConfig {
-  if (!configJson) return DEFAULT_CONFIG;
+): ProcessWidgetConfig {
+  if (!configJson) return DEFAULT_PROCESS_CONFIG;
   try {
-    const parsed = JSON.parse(configJson) as Partial<StatusWidgetConfig>;
-    const pollIntervalMs =
-      typeof parsed.pollIntervalMs === "number"
-        ? clampPollIntervalMs(parsed.pollIntervalMs)
-        : DEFAULT_POLL_INTERVAL_MS;
+    const parsed = JSON.parse(configJson) as Partial<ProcessWidgetConfig>;
     const processLimit =
       typeof parsed.processLimit === "number"
         ? clampProcessLimit(parsed.processLimit)
         : DEFAULT_PROCESS_LIMIT;
-    return { pollIntervalMs, processLimit };
+    return { processLimit };
   } catch {
-    return DEFAULT_CONFIG;
+    return DEFAULT_PROCESS_CONFIG;
   }
 }
 
-export function serializeStatusWidgetConfig(
-  config: StatusWidgetConfig,
-): string {
-  return JSON.stringify({
-    pollIntervalMs: clampPollIntervalMs(config.pollIntervalMs),
-    ...(typeof config.processLimit === "number"
-      ? { processLimit: clampProcessLimit(config.processLimit) }
-      : {}),
-  });
-}
-
 export function serializeProcessWidgetConfig(
-  config: StatusWidgetConfig,
+  config: ProcessWidgetConfig,
 ): string {
   return JSON.stringify({
-    pollIntervalMs: clampPollIntervalMs(config.pollIntervalMs),
-    processLimit: clampProcessLimit(
-      config.processLimit ?? DEFAULT_PROCESS_LIMIT,
-    ),
+    processLimit: clampProcessLimit(config.processLimit),
   });
 }
 

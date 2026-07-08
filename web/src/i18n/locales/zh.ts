@@ -85,6 +85,13 @@ export const zh = {
     layoutImportFailed: "导入布局失败",
     layoutImportConfirm: "用导入的文件替换当前仪表盘布局？",
     layoutImportSummary: "来自「{name}」的 {count} 个组件",
+    statusPollInterval: "状态采集间隔（秒）",
+    statusPollIntervalHint:
+      "适用于所有状态类组件（服务器、网络、进程、容器）。范围 {min}–{max} 秒。带宽图表固定显示近 {minutes} 分钟{slots}。",
+    statusPollSlots: "，当前约 {count} 个采样点",
+    statusPollIntervalInvalid: "请输入有效的采样间隔",
+    statusPollIntervalTooSmall: "采样间隔不能小于 {min} 秒",
+    statusPollIntervalTooLarge: "采样间隔不能大于 {max} 秒",
   },
   security: {
     loading: "加载中...",

@@ -15,7 +15,8 @@ import {
 import { WorkspaceHeader } from "@/components/WorkspaceHeader";
 import { useI18n } from "@/i18n";
 import { usePersonalization } from "@/theme";
-import { parseStatusWidgetConfig, DEFAULT_PROCESS_LIMIT } from "@/lib/status-widget-config";
+import { parseProcessWidgetConfig } from "@/lib/status-widget-config";
+import { useStatusPollInterval } from "@/lib/status-poll-interval";
 import { ServerListWidget } from "@/widgets/ServerListWidget";
 import { FileManagerWidget } from "@/widgets/FileManagerWidget";
 import { AiCommandWidget } from "@/widgets/AiCommandWidget";
@@ -33,7 +34,7 @@ import { AddServerDialog } from "./AddServerDialog";
 import { CopyServerDialog } from "./CopyServerDialog";
 import { EditServerDialog } from "./EditServerDialog";
 import { RenameGroupDialog } from "./RenameGroupDialog";
-import { StatusSettingsDialog } from "./StatusSettingsDialog";
+import { ProcessSettingsDialog } from "./ProcessSettingsDialog";
 import { AddWidgetMenu } from "./AddWidgetMenu";
 import { GridDashboard } from "./GridDashboard";
 import { findWidgetPlacement, layoutsEqual, type GridItem } from "./grid-utils";
@@ -105,6 +106,7 @@ function withoutDeadSessionsForServer(
 export function DashboardView() {
   const { t } = useI18n();
   const { gridMargin } = usePersonalization();
+  const pollIntervalMs = useStatusPollInterval();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [layout, setLayout] = useState<GridItem[]>([]);
   const [tree, setTree] = useState<TreeNode[]>([]);
@@ -133,7 +135,7 @@ export function DashboardView() {
   const [quickCommandAddWidgetId, setQuickCommandAddWidgetId] = useState<
     string | null
   >(null);
-  const [pollSettingsWidgetId, setPollSettingsWidgetId] = useState<
+  const [processSettingsWidgetId, setProcessSettingsWidgetId] = useState<
     string | null
   >(null);
   const [aiSettingsWidgetId, setAiSettingsWidgetId] = useState<string | null>(
@@ -896,7 +898,21 @@ export function DashboardView() {
             );
           }
 
-          if (widget.type === "status" || widget.type === "network" || widget.type === "process" || widget.type === "container") {
+          if (widget.type === "status" || widget.type === "network" || widget.type === "container") {
+            return (
+              <Button
+                className="widget-no-drag"
+                size="sm"
+                variant="secondary"
+                title={t("widget.deleteTitle")}
+                onClick={() => handleRemoveWidget(item.i)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            );
+          }
+
+          if (widget.type === "process") {
             return (
               <div className="widget-no-drag flex items-center gap-1">
                 <Button
@@ -904,7 +920,7 @@ export function DashboardView() {
                   size="sm"
                   variant="secondary"
                   title={t("common.settings")}
-                  onClick={() => setPollSettingsWidgetId(item.i)}
+                  onClick={() => setProcessSettingsWidgetId(item.i)}
                 >
                   <Settings className="h-3.5 w-3.5" />
                 </Button>
@@ -1070,9 +1086,7 @@ export function DashboardView() {
               <StatusWidget
                 activeServerId={activeServerId}
                 activeSessionId={activeSessionId}
-                pollIntervalMs={
-                  parseStatusWidgetConfig(widget.config_json).pollIntervalMs
-                }
+                pollIntervalMs={pollIntervalMs}
                 sessions={sessions}
                 tree={tree}
               />
@@ -1084,9 +1098,7 @@ export function DashboardView() {
               <NetworkStatusWidget
                 activeServerId={activeServerId}
                 activeSessionId={activeSessionId}
-                pollIntervalMs={
-                  parseStatusWidgetConfig(widget.config_json).pollIntervalMs
-                }
+                pollIntervalMs={pollIntervalMs}
                 sessions={sessions}
                 tree={tree}
               />
@@ -1094,15 +1106,13 @@ export function DashboardView() {
           }
 
           if (widget.type === "process") {
-            const processConfig = parseStatusWidgetConfig(widget.config_json);
+            const processConfig = parseProcessWidgetConfig(widget.config_json);
             return (
               <ProcessStatusWidget
                 activeServerId={activeServerId}
                 activeSessionId={activeSessionId}
-                pollIntervalMs={processConfig.pollIntervalMs}
-                processLimit={
-                  processConfig.processLimit ?? DEFAULT_PROCESS_LIMIT
-                }
+                pollIntervalMs={pollIntervalMs}
+                processLimit={processConfig.processLimit}
                 sessions={sessions}
                 tree={tree}
               />
@@ -1114,9 +1124,7 @@ export function DashboardView() {
               <ContainerStatusWidget
                 activeServerId={activeServerId}
                 activeSessionId={activeSessionId}
-                pollIntervalMs={
-                  parseStatusWidgetConfig(widget.config_json).pollIntervalMs
-                }
+                pollIntervalMs={pollIntervalMs}
                 sessions={sessions}
                 tree={tree}
               />
@@ -1227,35 +1235,19 @@ export function DashboardView() {
         }}
       />
 
-      <StatusSettingsDialog
+      <ProcessSettingsDialog
         configJson={
           dashboard.widgets.find(
-            (widget) => widget.id === pollSettingsWidgetId,
+            (widget) => widget.id === processSettingsWidgetId,
           )?.config_json ?? null
         }
-        titleKey={
-          (() => {
-            const type = dashboard.widgets.find(
-              (widget) => widget.id === pollSettingsWidgetId,
-            )?.type;
-            if (type === "network") return "network.settingsTitle";
-            if (type === "process") return "process.settingsTitle";
-            if (type === "container") return "container.settingsTitle";
-            return "status.settingsTitle";
-          })()
-        }
-        showProcessLimit={
-          dashboard.widgets.find(
-            (widget) => widget.id === pollSettingsWidgetId,
-          )?.type === "process"
-        }
-        open={pollSettingsWidgetId !== null}
+        open={processSettingsWidgetId !== null}
         onOpenChange={(open) => {
-          if (!open) setPollSettingsWidgetId(null);
+          if (!open) setProcessSettingsWidgetId(null);
         }}
         onSaved={(configJson) => {
-          if (pollSettingsWidgetId) {
-            handleWidgetConfigChange(pollSettingsWidgetId, configJson);
+          if (processSettingsWidgetId) {
+            handleWidgetConfigChange(processSettingsWidgetId, configJson);
           }
         }}
       />

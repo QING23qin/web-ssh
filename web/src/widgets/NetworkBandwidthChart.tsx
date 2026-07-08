@@ -20,20 +20,31 @@ function barHeightPx(value: number, max: number): number {
   return Math.max(2, Math.round((value / max) * BANDWIDTH_CHART_HEIGHT_PX));
 }
 
-/** Pad to a fixed slot count; newest samples align to the right. */
+/** Place samples into time buckets across the history window (newest on the right). */
 function buildBandwidthSlots(
   history: BandwidthSample[],
   maxSlots: number,
+  now = Date.now(),
 ): (BandwidthSample | null)[] {
   const slots: (BandwidthSample | null)[] = Array.from(
     { length: maxSlots },
     () => null,
   );
-  const filled = history.slice(-maxSlots);
-  const offset = maxSlots - filled.length;
-  for (let i = 0; i < filled.length; i++) {
-    slots[offset + i] = filled[i]!;
+  if (history.length === 0 || maxSlots <= 0) return slots;
+
+  const windowMs = BANDWIDTH_HISTORY_MS;
+  const slotWidth = windowMs / maxSlots;
+  const windowStart = now - windowMs;
+
+  for (const sample of history) {
+    if (sample.at < windowStart) continue;
+    const index = Math.min(
+      maxSlots - 1,
+      Math.max(0, Math.floor((sample.at - windowStart) / slotWidth)),
+    );
+    slots[index] = sample;
   }
+
   return slots;
 }
 
@@ -85,6 +96,7 @@ export interface NetworkBandwidthChartProps {
   maxSlots: number;
   pollIntervalMs: number;
   interfaceLabel?: string;
+  referenceTime?: string | null;
 }
 
 export function NetworkBandwidthChart({
@@ -94,13 +106,15 @@ export function NetworkBandwidthChart({
   maxSlots,
   pollIntervalMs,
   interfaceLabel,
+  referenceTime,
 }: NetworkBandwidthChartProps) {
   const t = useT();
   const historyRxMax = Math.max(...history.map((sample) => sample.rx), 0);
   const historyTxMax = Math.max(...history.map((sample) => sample.tx), 0);
   const rxScaleMax = historyRxMax > 0 ? historyRxMax : 1;
   const txScaleMax = historyTxMax > 0 ? historyTxMax : 1;
-  const slots = buildBandwidthSlots(history, maxSlots);
+  const now = referenceTime ? Date.parse(referenceTime) || Date.now() : Date.now();
+  const slots = buildBandwidthSlots(history, maxSlots, now);
   const historyMinutes = BANDWIDTH_HISTORY_MS / 60000;
 
   return (

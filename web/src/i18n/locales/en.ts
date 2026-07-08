@@ -92,6 +92,13 @@ export const en: Messages = {
     layoutImportConfirm:
       "Replace the current dashboard layout with the imported file?",
     layoutImportSummary: "{count} widgets from “{name}”",
+    statusPollInterval: "Status sample interval (seconds)",
+    statusPollIntervalHint:
+      "Applies to all status widgets (server, network, process, container). Range {min}–{max}s. Bandwidth charts show the last {minutes} minutes{slots}.",
+    statusPollSlots: ", about {count} samples",
+    statusPollIntervalInvalid: "Enter a valid sample interval",
+    statusPollIntervalTooSmall: "Sample interval must be at least {min}s",
+    statusPollIntervalTooLarge: "Sample interval must be at most {max}s",
   },
   security: {
     loading: "Loading...",

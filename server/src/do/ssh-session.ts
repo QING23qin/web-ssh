@@ -142,8 +142,12 @@ export class SshSession extends DurableObject<Env> {
       return;
     }
 
+    // Schedule the next tick from alarm start, not after collection finishes.
+    // Otherwise slow SSH/docker stats drift the effective interval (e.g. 5s → ~8.5s).
+    await this.ctx.storage.setAlarm(
+      Date.now() + this.getEffectivePollIntervalMs(),
+    );
     await this.collectAndPushStatus();
-    this.scheduleStatusAlarm();
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer) {

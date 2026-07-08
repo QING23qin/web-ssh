@@ -244,6 +244,7 @@ export function NetworkStatusWidget({
             }
             maxSlots={maxBandwidthSlots}
             pollIntervalMs={pollIntervalMs}
+            referenceTime={updatedAt}
             rxRate={selectedRates.rx}
             txRate={selectedRates.tx}
           />

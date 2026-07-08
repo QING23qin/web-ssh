@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { LanguageSelect } from "@/components/LanguageSelect";
 import { LayoutImportExportSection } from "@/components/LayoutImportExportSection";
 import { SiteNameField } from "@/components/SiteNameField";
+import { StatusPollIntervalSection } from "@/components/StatusPollIntervalSection";
 import { Modal } from "@/components/Modal";
 import { PersonalizationSection } from "@/components/PersonalizationSection";
 import { SecuritySection } from "@/components/SecuritySection";
@@ -137,6 +138,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </div>
               <SiteNameField />
               <LanguageSelect />
+              <StatusPollIntervalSection />
               <LayoutImportExportSection />
 
               <div className="border-t border-[var(--color-border)] pt-6">
