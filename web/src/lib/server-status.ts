@@ -2,6 +2,7 @@ export interface ServerStatusMetrics {
   load1: number | null;
   load5: number | null;
   load15: number | null;
+  cpuCount: number | null;
   cpuUsedPercent: number | null;
   memoryTotal: number | null;
   memoryAvailable: number | null;
@@ -81,6 +82,14 @@ export function formatBitrate(bytesPerSec: number | null): string {
 export function formatPercent(value: number | null, digits = 1): string {
   if (value === null || !Number.isFinite(value)) return "-";
   return `${value.toFixed(digits)}%`;
+}
+
+export function normalizeProcessCpuPercent(
+  cpuPercent: number,
+  cpuCount: number | null,
+): number {
+  if (cpuCount === null || cpuCount <= 0) return cpuPercent;
+  return Math.min(100, Math.round((cpuPercent / cpuCount) * 10) / 10);
 }
 
 export function computeNetRates(

@@ -294,6 +294,7 @@ export const zh = {
     load5: "5 分钟",
     load15: "15 分钟",
     cpu: "CPU",
+    cpuWithCores: "{percent}% · {cores} 核",
     memory: "内存",
     disk: "磁盘 /",
     uptime: "运行时间",

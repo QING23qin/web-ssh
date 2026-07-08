@@ -8,6 +8,7 @@ export interface ServerStatusMetrics {
   load1: number | null;
   load5: number | null;
   load15: number | null;
+  cpuCount: number | null;
   cpuUsedPercent: number | null;
   memoryTotal: number | null;
   memoryAvailable: number | null;
@@ -81,9 +82,10 @@ export function parseProcessLimitParam(
   return clampProcessLimit(parsed);
 }
 
-function buildProcessMetricsCommand(processLimit: number): string {
+export function buildProcessMetricsCommand(processLimit: number): string {
   const limit = clampProcessLimit(processLimit);
   // One ps pass: awk keeps top-N by CPU without ps --sort scanning/sorting every process twice.
+  // Skip the collector's own ps/awk so they do not appear as top CPU processes.
   return `ps -eo pid=,user=,pcpu=,pmem=,rss=,stat=,args= 2>/dev/null | awk -v limit=${limit} '
 {
   proccnt++
@@ -91,6 +93,8 @@ function buildProcessMetricsCommand(processLimit: number): string {
   for (i=8; i<=NF; i++) name=name" "$i
   if (length(name)>48) name=substr(name,1,48)
   gsub(/\\|/, "/", name)
+  if (index(name, "ps -eo pid=,user=,pcpu=") > 0) next
+  if (index(name, "awk -v limit=") > 0) next
   pcpu=$3+0
   line=$1"|"$2"|"$3"|"$4"|"$5"|"$6"|"name
   if (n<limit) {
@@ -119,20 +123,26 @@ END {
 }'`;
 }
 
-export function buildStatusCommand(
-  processLimit = DEFAULT_PROCESS_LIMIT,
-): string {
+export function buildLightStatusCommand(): string {
   return [
     'echo "LOAD:$(cut -d" " -f1-3 /proc/loadavg 2>/dev/null)"',
     'echo "CPU:$(awk \'/^cpu / {print $2+$3+$4+$5+$6+$7+$8+$9, $5+$6; exit}\' /proc/stat 2>/dev/null)"',
+    'echo "NCPU:$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null)"',
     'MT=$(awk \'/MemTotal/ {print $2; exit}\' /proc/meminfo 2>/dev/null); MA=$(awk \'/MemAvailable/ {print $2; exit}\' /proc/meminfo 2>/dev/null); [ -n "$MA" ] || MA=$(awk \'/MemFree/ {print $2; exit}\' /proc/meminfo 2>/dev/null); echo "MEM:${MT} ${MA}"',
     'echo "DISK:$(df -Pk / 2>/dev/null | awk \'NR==2 {print $2, $3, $4; exit}\')"',
     'echo "NET:$(awk \'$1 ~ /:/ {gsub(/:/,"",$1); if ($1!="lo") {rx+=$2; tx+=$10}} END {print rx, tx}\' /proc/net/dev 2>/dev/null)"',
     'awk \'$1 ~ /:/ {gsub(/:/,"",$1); if ($1!="lo") print "IF:"$1" "$2" "$10}\' /proc/net/dev 2>/dev/null',
     'echo "UPTIME:$(cut -d" " -f1 /proc/uptime 2>/dev/null)"',
     'echo "OS:$(uname -sr 2>/dev/null)"',
-    buildProcessMetricsCommand(processLimit),
   ].join("; ");
+}
+
+export function buildStatusCommand(
+  processLimit = DEFAULT_PROCESS_LIMIT,
+): string {
+  return [buildLightStatusCommand(), buildProcessMetricsCommand(processLimit)].join(
+    "; ",
+  );
 }
 
 // Run via a dedicated SSH exec channel (non-interactive). Do not nest `/bin/sh -c`
@@ -157,6 +167,7 @@ export function parseStatusOutput(output: string): {
     load1: null,
     load5: null,
     load15: null,
+    cpuCount: null,
     cpuUsedPercent: null,
     memoryTotal: null,
     memoryAvailable: null,
@@ -203,6 +214,9 @@ export function parseStatusOutput(output: string): {
         cpuIdleJiffies = parseNumber(parts[1]);
         break;
       }
+      case "NCPU":
+        metrics.cpuCount = parseNumber(value);
+        break;
       case "MEM": {
         if (!value) break;
         const parts = value.split(/\s+/).filter(Boolean);
@@ -306,6 +320,14 @@ export function parseStatusOutput(output: string): {
     cpuIdleJiffies,
     netInterfaces,
   };
+}
+
+export function normalizeProcessCpuPercent(
+  cpuPercent: number,
+  cpuCount: number | null,
+): number {
+  if (cpuCount === null || cpuCount <= 0) return cpuPercent;
+  return Math.min(100, Math.round((cpuPercent / cpuCount) * 10) / 10);
 }
 
 export function computeCpuUsage(

@@ -5,6 +5,7 @@ import { type Server, type TreeNode } from "@/lib/api";
 import {
   formatBytes,
   formatPercent,
+  normalizeProcessCpuPercent,
   type ProcessMetrics,
 } from "@/lib/server-status";
 import {
@@ -38,7 +39,14 @@ function findServer(tree: TreeNode[], serverId: string): Server | null {
   return null;
 }
 
-function ProcessRow({ process }: { process: ProcessMetrics }) {
+function ProcessRow({
+  process,
+  cpuCount,
+}: {
+  process: ProcessMetrics;
+  cpuCount: number | null;
+}) {
+  const cpuPercent = normalizeProcessCpuPercent(process.cpuPercent, cpuCount);
   return (
     <tr className="border-b border-[var(--color-border)]/60 last:border-b-0">
       <td className="px-2 py-1.5 tabular-nums">{process.pid}</td>
@@ -46,7 +54,7 @@ function ProcessRow({ process }: { process: ProcessMetrics }) {
         {process.user}
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">
-        {formatPercent(process.cpuPercent)}
+        {formatPercent(cpuPercent)}
       </td>
       <td className="px-2 py-1.5 text-right tabular-nums">
         {formatPercent(process.memPercent)}
@@ -171,7 +179,11 @@ export function ProcessStatusWidget({
             </thead>
             <tbody>
               {processes.map((process) => (
-                <ProcessRow key={process.pid} process={process} />
+                <ProcessRow
+                  key={process.pid}
+                  process={process}
+                  cpuCount={metrics?.cpuCount ?? null}
+                />
               ))}
             </tbody>
           </table>

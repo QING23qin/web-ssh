@@ -129,7 +129,12 @@ export function StatusWidget({
             value={metrics.cpuUsedPercent}
             detail={
               metrics.cpuUsedPercent !== null
-                ? `${metrics.cpuUsedPercent}%`
+                ? metrics.cpuCount !== null
+                  ? t("status.cpuWithCores", {
+                      percent: metrics.cpuUsedPercent,
+                      cores: metrics.cpuCount,
+                    })
+                  : `${metrics.cpuUsedPercent}%`
                 : "-"
             }
           />

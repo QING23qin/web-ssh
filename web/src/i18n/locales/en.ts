@@ -306,6 +306,7 @@ export const en: Messages = {
     load5: "5 min",
     load15: "15 min",
     cpu: "CPU",
+    cpuWithCores: "{percent}% · {cores} cores",
     memory: "Memory",
     disk: "Disk /",
     uptime: "Uptime",

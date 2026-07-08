@@ -1,7 +1,8 @@
 import { DurableObject } from "cloudflare:workers";
 import { getCredentialValue, getServer } from "../db/servers";
 import {
-  buildStatusCommand,
+  buildLightStatusCommand,
+  buildProcessMetricsCommand,
   clampStatusPollIntervalMs,
   computeCpuUsage,
   computeInterfaceNetRates,
@@ -564,10 +565,23 @@ export class SshSession extends DurableObject<Env> {
     config: SSHConnectionConfig,
     processLimit: number,
   ) {
-    const statusCommand = buildStatusCommand(processLimit);
+    const lightCommand = buildLightStatusCommand();
+    const processCommand = buildProcessMetricsCommand(processLimit);
     const run = async () => {
       try {
-        return await this.statusSession!.execCommand(statusCommand, 12000);
+        const lightResult = await this.statusSession!.execCommand(
+          lightCommand,
+          8000,
+        );
+        const processResult = await this.statusSession!.execCommand(
+          processCommand,
+          8000,
+        );
+        return {
+          stdout: `${lightResult.stdout}\n${processResult.stdout}`,
+          stderr: `${lightResult.stderr}${processResult.stderr}`,
+          exitCode: lightResult.exitCode || processResult.exitCode,
+        };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (!this.isRetriableStatusError(message)) {
@@ -579,7 +593,19 @@ export class SshSession extends DurableObject<Env> {
         if (!this.statusSession?.isSSHReady()) {
           throw new Error("状态采集连接未就绪");
         }
-        return await this.statusSession!.execCommand(statusCommand, 12000);
+        const lightResult = await this.statusSession!.execCommand(
+          lightCommand,
+          8000,
+        );
+        const processResult = await this.statusSession!.execCommand(
+          processCommand,
+          8000,
+        );
+        return {
+          stdout: `${lightResult.stdout}\n${processResult.stdout}`,
+          stderr: `${lightResult.stderr}${processResult.stderr}`,
+          exitCode: lightResult.exitCode || processResult.exitCode,
+        };
       }
     };
 
