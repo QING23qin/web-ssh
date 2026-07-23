@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "ternssh",
-      "database_id": "local-ternssh-db",
+      "database_id": "",
       "migrations_dir": "server/migrations"
     }
   ],
